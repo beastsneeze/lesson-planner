@@ -47,8 +47,10 @@ def add_lesson():
     # Insert into the database
     connection = sqlite3.connect('db/planner.db')
     cursor = connection.cursor()
-    cursor.execute("INSERT INTO lessons (title, date, time, subject, notes, completed) VALUES (?, ?, ?, ?, ?, ?)",
-                   (new_lesson.title, new_lesson.date, new_lesson.time, new_lesson.subject, new_lesson.notes, new_lesson.completed))
+    cursor.execute('''
+    INSERT INTO lessons (title, date, time, subject, notes, completed)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ''', (title, date, time, subject, notes, 0))
     connection.commit()
     connection.close()
 
@@ -63,7 +65,9 @@ def view_lessons():
     if lessons:
         print("\n--- All Lessons ---")
         for lesson in lessons:
-            print(f"ID: {lesson[0]}, Title: {lesson[1]}, Date: {lesson[2]}, Time: {lesson[3]}, Subject: {lesson[4]}, Completed: {bool(lesson[5])}")
+            status = "Completed" if lesson[6] == 1 else "Incomplete"  # lesson[6] is the 'completed' field
+            print(f"ID: {lesson[0]}, Title: {lesson[1]}, Date: {lesson[2]}, Time: {lesson[3]}, Subject: {lesson[4]}, Notes: {lesson[5]}, Status: {status}")
+
     else:
         print("No lessons found.")
 
@@ -73,11 +77,18 @@ def mark_lesson_complete():
 
     connection = sqlite3.connect('db/planner.db')
     cursor = connection.cursor()
-    cursor.execute("UPDATE lessons SET completed = 1 WHERE id = ?", (lesson_id,))
-    connection.commit()
+    # Check if lesson ID exists
+    cursor.execute('SELECT id FROM lessons WHERE id = ?', (lesson_id,))
+    result = cursor.fetchone()
+    if result:  # If the lesson ID exists
+        cursor.execute('UPDATE lessons SET completed = 1 WHERE id = ?', (lesson_id,))
+        connection.commit()
+        print(f"Lesson with ID {lesson_id} marked as completed.")
+    else:  # If the lesson ID does not exist
+        print(f"Lesson with ID {lesson_id} does not exist.")
+    
     connection.close()
 
-    print(f"Lesson {lesson_id} marked as complete!")
 def add_task():
     description = input("Enter task description: ")
     due_date = input("Enter due date (YYYY-MM-DD): ")
@@ -112,11 +123,18 @@ def mark_task_complete():
 
     connection = sqlite3.connect('db/planner.db')
     cursor = connection.cursor()
-    cursor.execute("UPDATE tasks SET status = 1 WHERE id = ?", (task_id,))
-    connection.commit()
+    cursor.execute('SELECT id FROM tasks WHERE id = ?', (task_id,))
+    result = cursor.fetchone()
+
+    if result:  # If the task ID exists
+        cursor.execute('UPDATE tasks SET completed = 1 WHERE id = ?', (task_id,))
+        connection.commit()
+        print(f"Task with ID {task_id} marked as completed.")
+    else:  # If the task ID does not exist
+        print(f"Task with ID {task_id} does not exist.")
+    
     connection.close()
 
-    print(f"Task {task_id} marked as complete!")
 
 
 main()
