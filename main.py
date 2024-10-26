@@ -51,11 +51,6 @@
 #         print("3. View all lessons")
 #         print("4. Mark lesson as complete")
 #         print("5. Delete a lesson")
-#         print("6. Add a new task")
-#         print("7. Update a task")
-#         print("8. View all tasks")
-#         print("9. Mark task as complete")
-#         print("10. Delete a task")
 #         print("0. Exit")
 
 #         choice = input("\nEnter your choice: ")
@@ -74,20 +69,6 @@
 #         elif choice == "5":
 #             view_lessons()
 #             delete_lesson()
-#         elif choice == "6":
-#             add_task()
-#             view_tasks()
-#         elif choice == "7":
-#             view_tasks()
-#             update_task()
-#         elif choice == "8":
-#             view_tasks()
-#         elif choice == "9":
-#             view_tasks()
-#             mark_task_complete()
-#         elif choice == "10":
-#             view_tasks()
-#             delete_task()
 #         elif choice == "0":
 #             print("Goodbye!")
 #             break
@@ -348,194 +329,8 @@
 #     finally:
 #         connection.close()
 
-# def add_task():
-#     while True:
-#         description = input("Enter task description: ")
-#         if description.strip():
-#             break
-#         else:
-#             print("Description cannot be empty. Please enter a valid task description.")
-    
-#     while True:
-#         due_date = input("Enter due date (YYYY-MM-DD): ")
-#         if validate_date(due_date):
-#             break
-#         else:
-#             print("Invalid date format. Please use YYYY-MM-DD.")
-
-#     try:
-#         new_task = Task(description, due_date)
-
-#         connection = get_db_connection()
-#         cursor = connection.cursor()
-#         cursor.execute("INSERT INTO tasks (description, due_date, status) VALUES (?, ?, ?)",
-#                        (new_task.description, new_task.due_date, new_task.status))
-#         connection.commit()
-
-#         print(f"Task '{new_task.description}' added successfully!")
-
-#     except sqlite3.OperationalError as e:
-#         print(f"Database error occurred: {e}")
-#     except Exception as e:
-#         print(f"An unexpected error occurred: {e}")
-#     finally:
-#         connection.close()
-
-# def update_task():
-#     while True:
-#         task_id = input("Enter the ID of the task to update: ")
-#         if validate_id(task_id):
-#             break
-#         else:
-#             print("Invalid ID. Please enter a positive integer.")
-
-#     try:
-#         connection = get_db_connection()
-#         cursor = connection.cursor()
-#         cursor.execute('SELECT * FROM tasks WHERE id = ?', (task_id,))
-#         task = cursor.fetchone()
-
-#         if task:
-#             print("\n--- Current Task Details ---")
-#             print(f"Description: {task[1]}, Due Date: {task[2]}, Status: {'Complete' if task[3] else 'Incomplete'}")
-            
-#             while True:
-#                 new_description = input(f"Enter new description (Leave blank to keep '{task[1]}'): ") or task[1]
-#                 if new_description.strip():
-#                     break
-#                 else:
-#                     print("Description cannot be empty. Please enter a valid description.")
-
-#             while True:
-#                 new_due_date = input(f"Enter new due date (Leave blank to keep '{task[2]}', use YYYY-MM-DD): ") or task[2]
-#                 if validate_date(new_due_date):
-#                     break
-#                 else:
-#                     print("Invalid due date format. Please use YYYY-MM-DD.")
-
-#             cursor.execute('''
-#                 UPDATE tasks
-#                 SET description = ?, due_date = ?
-#                 WHERE id = ?
-#             ''', (new_description, new_due_date, task_id))
-
-#             connection.commit()
-#             print(f"Task with ID {task_id} updated successfully!")
-#         else:
-#             print(f"No task found with ID {task_id}.")
-    
-#     except sqlite3.OperationalError as e:
-#         print(f"Database error occurred: {e}")
-#     except Exception as e:
-#         print(f"An unexpected error occurred: {e}")
-#     finally:
-#         connection.close()
-
-# def delete_task():
-#     while True:
-#         task_id = input("Enter the ID of the task to delete: ")
-#         if validate_id(task_id):
-#             break
-#         else:
-#             print("Invalid ID. Please enter a positive integer.")
-    
-#     try:
-#         connection = get_db_connection()
-#         cursor = connection.cursor()
-#         cursor.execute('SELECT * FROM tasks WHERE id = ?', (task_id,))
-#         task = cursor.fetchone()
-
-#         if task:
-#             confirmation = input(f"Are you sure you want to delete the task '{task[1]}'? (y/n): ").lower()
-#             if confirmation == 'y':
-#                 cursor.execute('DELETE FROM tasks WHERE id = ?', (task_id,))
-#                 connection.commit()
-#                 print(f"Task with ID {task_id} deleted successfully!")
-#             else:
-#                 print("Task deletion canceled.")
-#         else:
-#             print(f"No task found with ID {task_id}.")
-    
-#     except sqlite3.OperationalError as e:
-#         print(f"Database error occurred: {e}")
-#     except Exception as e:
-#         print(f"An unexpected error occurred: {e}")
-#     finally:
-#         connection.close()
-
-# def view_tasks():
-#     try:
-#         connection = get_db_connection()
-#         cursor = connection.cursor()
-#         cursor.execute("SELECT * FROM tasks")
-#         tasks = cursor.fetchall()
-
-#         if tasks:
-#             print("\n--- All Tasks ---")
-#             for task in tasks:
-#                 print(f"ID: {task[0]}, Description: {task[1]}, Due Date: {task[2]}, Status: {'Complete' if task[3] else 'Incomplete'}")
-#         else:
-#             print("No tasks found.")
-
-#     except sqlite3.OperationalError as e:
-#         print(f"Database error occurred: {e}")
-#     except Exception as e:
-#         print(f"An unexpected error occurred: {e}")
-#     finally:
-#         connection.close()
-
-# def mark_task_complete():
-#     while True:
-#         task_id = input("Enter the ID of the task to mark as complete: ")
-#         if validate_id(task_id):
-#             break
-#         else:
-#             print("Invalid ID. Please enter a positive integer.")
-
-#     try:
-#         connection = get_db_connection()
-#         cursor = connection.cursor()
-#         cursor.execute('SELECT id FROM tasks WHERE id = ?', (task_id,))
-#         result = cursor.fetchone()
-
-#         if result:
-#             cursor.execute('UPDATE tasks SET status = 1 WHERE id = ?', (task_id,))
-#             connection.commit()
-#             print(f"Task with ID {task_id} marked as completed.")
-#         else:
-#             print(f"Task with ID {task_id} does not exist.")
-
-#     except sqlite3.OperationalError as e:
-#         print(f"Database error occurred: {e}")
-#     except Exception as e:
-#         print(f"An unexpected error occurred: {e}")
-#     finally:
-#         connection.close()
-
-
 # db_init()
 # menu()
 
 
-# main.py
-
-# main.py
-
-from tkinter import Tk
-from gui.interface import LessonPlannerApp 
-from db.db_init import init_db, add_columns_if_not_exists
-import sqlite3
-
-def db_init():
-    connection = sqlite3.connect('db/planner.db')
-    cursor = connection.cursor()
-    init_db()
-    add_columns_if_not_exists(cursor)
-    connection.commit()
-    connection.close()
-
-if __name__ == "__main__":
-    db_init()  # Initialize the database
-    root = Tk()  # Create the main window
-    app = LessonPlannerApp(root)  # Instantiate the LessonPlannerApp
-    root.mainloop()  # Start the GUI event loop
+import gui.interface 
