@@ -22,24 +22,6 @@ def validate_id(input_str):
 def get_db_connection():
     return sqlite3.connect('db/planner.db')
 
-def init_db():
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute('''CREATE TABLE IF NOT EXISTS lessons (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            title TEXT NOT NULL,
-                            day_of_week TEXT NOT NULL,
-                            time TEXT NOT NULL,
-                            subject TEXT NOT NULL,
-                            notes TEXT,
-                            completed INTEGER DEFAULT 0,
-                            default_students INTEGER,
-                            session_price REAL
-                        )''')
-        conn.commit()
-
-# Initialize database
-init_db()
 
 class LessonPlannerGUI:
     def __init__(self, root):
@@ -58,7 +40,7 @@ class LessonPlannerGUI:
         # Buttons for adding/updating lessons
         tk.Button(left_frame, text="Add Lesson", command=self.add_lesson).pack(pady=5)
         tk.Button(left_frame, text="Update Lesson", command=self.update_lesson).pack(pady=5)
-        tk.Button(left_frame, text="Mark as Complete", command=self.mark_lesson_complete).pack(pady=5)
+        tk.Button(left_frame, text="Incomplete/Completed", command=self.mark_lesson_complete).pack(pady=5)
         tk.Button(left_frame, text="Delete Lesson", command=self.delete_lesson).pack(pady=5)
         
         # Adding space before the entries
@@ -91,19 +73,19 @@ class LessonPlannerGUI:
         self.lesson_list.heading("Subject", text="Subject")
         self.lesson_list.heading("Notes", text="Notes")
         self.lesson_list.heading("Completed", text="Completed")
-        self.lesson_list.heading("Default Students", text="Default Students")
-        self.lesson_list.heading("Session Price", text="Session Price")
+        self.lesson_list.heading("Default Students", text="Students")
+        self.lesson_list.heading("Session Price", text="Price")
 
         # Set column widths (adjust as necessary)
-        self.lesson_list.column("ID", width=50)
+        self.lesson_list.column("ID", width=10)
         self.lesson_list.column("Title", width=150)
-        self.lesson_list.column("Day of Week", width=100)
-        self.lesson_list.column("Time", width=100)
-        self.lesson_list.column("Subject", width=100)
+        self.lesson_list.column("Day of Week", width=70)
+        self.lesson_list.column("Time", width=50)
+        self.lesson_list.column("Subject", width=50)
         self.lesson_list.column("Notes", width=150)
-        self.lesson_list.column("Completed", width=80)
-        self.lesson_list.column("Default Students", width=120)
-        self.lesson_list.column("Session Price", width=100)
+        self.lesson_list.column("Completed", width=50)
+        self.lesson_list.column("Default Students", width=20)
+        self.lesson_list.column("Session Price", width=50)
 
         # Pack the Treeview and scrollbars
         self.lesson_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -112,6 +94,7 @@ class LessonPlannerGUI:
 
         # Load existing lessons
         self.load_lessons()
+        self.lesson_list.bind("<<TreeviewSelect>>", lambda event: self.populate_entries())
 
 
 
@@ -253,18 +236,32 @@ class LessonPlannerGUI:
     def mark_lesson_complete(self):
         selected_item = self.lesson_list.focus()
         if not selected_item:
-            messagebox.showwarning("Warning", "Please select a lesson to mark as complete.")
+            messagebox.showwarning("Warning", "Please select a lesson to toggle completion status.")
             return
 
         lesson_id = self.lesson_list.item(selected_item)["values"][0]
+
+        # Connect to the database
         connection = get_db_connection()
         cursor = connection.cursor()
-        cursor.execute('''UPDATE lessons SET completed=1 WHERE id=?''', (lesson_id,))
+
+        # Get the current completed status of the lesson
+        cursor.execute("SELECT completed FROM lessons WHERE id=?", (lesson_id,))
+        current_status = cursor.fetchone()[0]
+
+        # Toggle the completion status
+        new_status = 0 if current_status == 1 else 1
+        cursor.execute("UPDATE lessons SET completed=? WHERE id=?", (new_status, lesson_id))
+
+        # Commit changes and close the connection
         connection.commit()
         connection.close()
 
-        messagebox.showinfo("Success", "Lesson marked as complete!")
+        # Show a success message and reload the lessons
+        status_text = "completed" if new_status == 1 else "incomplete"
+        messagebox.showinfo("Success", f"Lesson marked as {status_text}!")
         self.load_lessons()
+
 
     def delete_lesson(self):
         selected_item = self.lesson_list.focus()
@@ -286,6 +283,41 @@ class LessonPlannerGUI:
             messagebox.showinfo("Success", "Lesson deleted successfully!")
             self.load_lessons()
 
+    def populate_entries(self):
+        selected_item = self.lesson_list.focus()
+        if not selected_item:
+            return
+        
+        lesson_id = self.lesson_list.item(selected_item)["values"][0]
+        connection = get_db_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT title, day_of_week, time, subject, notes, default_students, session_price FROM lessons WHERE id=?", (lesson_id,))
+        record = cursor.fetchone()
+        connection.close()
+        
+        if record:
+            title, day_of_week, time, subject, notes, default_students, session_price = record
+            self.title_entry.delete(0, tk.END)
+            self.title_entry.insert(0, title)
+            self.date_entry.set(day_of_week)
+            
+            # Split time into hour and minute for combo boxes
+            hour, minute = time.split(":")
+            hour_combo, minute_combo = self.time_entry
+            hour_combo.set(hour)
+            minute_combo.set(minute)
+            
+            self.subject_entry.delete(0, tk.END)
+            self.subject_entry.insert(0, subject)
+            
+            self.notes_entry.delete("1.0", tk.END)
+            self.notes_entry.insert("1.0", notes)
+            
+            self.default_students_entry.delete(0, tk.END)
+            self.default_students_entry.insert(0, str(default_students))
+            
+            self.session_price_entry.delete(0, tk.END)
+            self.session_price_entry.insert(0, str(session_price))
 
 if __name__ == "__main__":
     root = tk.Tk()
