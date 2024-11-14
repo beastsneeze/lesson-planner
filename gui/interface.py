@@ -1,14 +1,31 @@
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
+from tkinter import Toplevel
 from datetime import datetime
 import sqlite3
 
+def silent_messagebox(title, message):
+    root = Toplevel()
+    root.title(title)
+    root.geometry("300x100")
+    
+    label = tk.Label(root, text=message)
+    label.pack(pady=20)
+    
+    ok_button = tk.Button(root, text="OK", command=root.destroy)
+    ok_button.pack(pady=10)
+    
+    # Center the window
+    root.update_idletasks()
+    x = (root.winfo_screenwidth() - root.winfo_width()) // 2
+    y = (root.winfo_screenheight() - root.winfo_height()) // 2
+    root.geometry(f'+{x}+{y}')
+    
+    root.mainloop()
+# background
+bg = "light blue"
 # Function to validate day of the week
-def validate_day(day_str):
-    valid_days = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-    return day_str in valid_days
-
 def validate_time(hour, minute, period):
     """Validate time entries in 12-hour format (e.g., 01:15 PM)."""
     try:
@@ -24,6 +41,10 @@ def validate_time(hour, minute, period):
         # If parsing fails, indicate invalid time
         return False
 
+# Function to validate day of the week
+def validate_day(day_str):
+    valid_days = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    return day_str in valid_days
 
 def validate_id(input_str):
     return input_str.isdigit()
@@ -39,11 +60,12 @@ class LessonPlannerGUI:
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         self.root.geometry(f"{screen_width}x{screen_height}")
+        self.root.configure(bg=bg)
 
         # Frame setup: split into left and right halves
-        left_frame = tk.Frame(root)
+        left_frame = tk.Frame(root, bg=bg)
         left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
-        right_frame = tk.Frame(self.root)
+        right_frame = tk.Frame(self.root, bg=bg)
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         # Buttons for adding/updating lessons
@@ -51,14 +73,14 @@ class LessonPlannerGUI:
         tk.Button(left_frame, text="Update Lesson", command=self.update_lesson).pack(pady=5)
         tk.Button(left_frame, text="Incomplete/Completed", command=self.mark_lesson_complete).pack(pady=5)
         tk.Button(left_frame, text="Delete Lesson", command=self.delete_lesson).pack(pady=5)
-        
+
         # Adding space before the entries
-        tk.Label(left_frame).pack(pady=(10, 0))  # Empty label to create space
-        
+        tk.Label(left_frame, bg=bg).pack(pady=(10, 0))  # Empty label to create space
+
         self.title_entry = self.create_form_entry(left_frame, "Title")
         self.date_entry = self.create_form_entry(left_frame, "Day of the Week (e.g. Monday)")
-        self.start_time_entry = self.create_form_entry(left_frame, "Start Time (HH:MM)")
-        self.end_time_entry = self.create_form_entry(left_frame, "End Time (HH:MM)")
+        self.start_time_entry = self.create_form_entry(left_frame, "Start Time (HH:MM PR)")
+        self.end_time_entry = self.create_form_entry(left_frame, "End Time (HH:MM PR)")
         self.subject_entry = self.create_form_entry(left_frame, "Subject")
         self.default_students_entry = self.create_form_entry(left_frame, "Default Students")
         self.session_price_entry = self.create_form_entry(left_frame, "Session Price")
@@ -84,21 +106,18 @@ class LessonPlannerGUI:
             self.lesson_list.heading(col, text=col)
             self.lesson_list.column(col, width=width)
 
-
-        # Pack the Treeview and scrollbars
-        self.lesson_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # Pack the scrollbars first and Treeview last
         self.yscrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.xscrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+        self.lesson_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Load existing lessons
         self.load_lessons()
         self.lesson_list.bind("<<TreeviewSelect>>", lambda event: self.populate_entries())
 
 
-
-
     def create_form_entry(self, parent, label_text):
-        tk.Label(parent, text=label_text).pack()
+        tk.Label(parent, text=label_text, bg=bg).pack()
 
         if label_text == "Day of the Week (e.g. Monday)":
             # Combo box for days of the week
@@ -107,7 +126,7 @@ class LessonPlannerGUI:
             entry.set("Select Day")
             entry.pack()
 
-        elif label_text in ["Start Time (HH:MM)", "End Time (HH:MM)"]:
+        elif label_text in ["Start Time (HH:MM PR)", "End Time (HH:MM PR)"]:
             # Create a frame to hold the hour, minute, and period comboboxes side by side
             time_frame = tk.Frame(parent)
             time_frame.pack()
@@ -156,10 +175,23 @@ class LessonPlannerGUI:
         
         # Insert each lesson into the lesson list
         for lesson in lessons:
-            # Check completed status (assumed to be the seventh column)
-            status = "Completed" if lesson[6] else "Incomplete"
-            # Include all columns, ensure to place status correctly
-            self.lesson_list.insert("", "end", values=(lesson[0], lesson[1], lesson[2], lesson[3], lesson[9], lesson[4], lesson[5], status, lesson[7], lesson[8]))
+            # Ensure the correct column indices
+            lesson_id = lesson[0]  # ID
+            title = lesson[1]  # Title
+            day_of_week = lesson[2]  # Day of the week
+            start_time = lesson[3]  # Start time
+            end_time = lesson[4]  # End time (column 4)
+            subject = lesson[5]  # Subject
+            notes = lesson[6]  # Notes
+            completed = lesson[7]  # Completed status (1 = Completed, 0 = Incomplete)
+            default_students = lesson[8]  # Default number of students
+            session_price = lesson[9]  # Session price
+
+            # Check completed status
+            status = "Completed" if completed else "Incomplete"
+
+            # Insert values into the Treeview
+            self.lesson_list.insert("", "end", values=(lesson_id, title, day_of_week, start_time, end_time, subject, notes, status, default_students, session_price))
 
     def add_lesson(self):
         title = self.title_entry.get()
@@ -175,14 +207,6 @@ class LessonPlannerGUI:
         e_minute = e_minute_combo.get()
         e_period = e_period_combo.get()
         e_time_12h = f"{e_hour}:{e_minute} {e_period}"
-
-        # Convert 12-hour time to 24-hour time for database storage
-        try:
-            s_time_24h = datetime.strptime(s_time_12h, '%I:%M %p').strftime('%H:%M')
-            e_time_24h = datetime.strptime(e_time_12h, '%I:%M %p').strftime('%H:%M')
-        except ValueError:
-            messagebox.showerror("Error", "Please select valid start and end times.")
-            return
 
         subject = self.subject_entry.get()
         notes = self.notes_entry.get("1.0", "end-1c")
@@ -201,12 +225,12 @@ class LessonPlannerGUI:
         connection = get_db_connection()
         cursor = connection.cursor()
         cursor.execute('''INSERT INTO lessons (title, day_of_week, start_time, subject, notes, completed, default_students, session_price, end_time) 
-                        VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)''', 
-                        (title, day_of_week, s_time_24h, subject, notes, default_students, session_price, e_time_24h))
+                    VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)''', 
+                    (title, day_of_week, s_time_12h, subject, notes, default_students, session_price, e_time_12h))
         connection.commit()
         connection.close()
 
-        messagebox.showinfo("Success", f"Lesson '{title}' added successfully!")
+        silent_messagebox("Success", f"Lesson '{title}' added successfully!")
         self.load_lessons()
 
 
@@ -231,14 +255,6 @@ class LessonPlannerGUI:
         e_period = e_period_combo.get()
         e_time_12h = f"{e_hour}:{e_minute} {e_period}"
 
-        # Convert 12-hour time to 24-hour time for database storage
-        try:
-            s_time_24h = datetime.strptime(s_time_12h, '%I:%M %p').strftime('%H:%M')
-            e_time_24h = datetime.strptime(e_time_12h, '%I:%M %p').strftime('%H:%M')
-        except ValueError:
-            messagebox.showerror("Error", "Please select valid start and end times.")
-            return
-
         subject = self.subject_entry.get()
         notes = self.notes_entry.get("1.0", "end-1c")
 
@@ -255,13 +271,13 @@ class LessonPlannerGUI:
 
         connection = get_db_connection()
         cursor = connection.cursor()
-        cursor.execute('''UPDATE lessons SET title=?, day_of_week=?, start_time=?, subject=?, notes=?, default_students=?, session_price=?, end_time=? 
-                        WHERE id=?''', 
-                        (title, day_of_week, s_time_24h, subject, notes, default_students, session_price, e_time_24h, lesson_id))
+        cursor.execute('''UPDATE lessons SET title=?, day_of_week=?, start_time=?, subject=?, notes=?, 
+                    default_students=?, session_price=?, end_time=? WHERE id=?''', 
+                    (title, day_of_week, s_time_12h, subject, notes, default_students, session_price, e_time_12h, lesson_id))
         connection.commit()
-        connection.close()
+        connection.close()  
 
-        messagebox.showinfo("Success", f"Lesson '{title}' updated successfully!")
+        silent_messagebox("Success", f"Lesson '{title}' updated successfully!")
         self.load_lessons()
     def mark_lesson_complete(self):
         selected_item = self.lesson_list.focus()
@@ -277,7 +293,7 @@ class LessonPlannerGUI:
 
         # Get the current completed status of the lesson
         cursor.execute("SELECT completed FROM lessons WHERE id=?", (lesson_id,))
-        current_status = cursor.fetchone()[0]
+        current_status = cursor.fetchone()
 
         # Toggle the completion status
         new_status = 0 if current_status == 1 else 1
@@ -289,7 +305,7 @@ class LessonPlannerGUI:
 
         # Show a success message and reload the lessons
         status_text = "completed" if new_status == 1 else "incomplete"
-        messagebox.showinfo("Success", f"Lesson marked as {status_text}!")
+        silent_messagebox("Success", f"Lesson marked as {status_text}!")
         self.load_lessons()
 
 
@@ -310,53 +326,53 @@ class LessonPlannerGUI:
             connection.commit()
             connection.close()
 
-            messagebox.showinfo("Success", "Lesson deleted successfully!")
+            silent_messagebox("Success", "Lesson deleted successfully!")
             self.load_lessons()
 
+
+
     def populate_entries(self):
-        selected_item = self.lesson_list.focus()
-        if not selected_item:
-            return
 
-        # Retrieve lesson details and unpack
-        lesson = self.lesson_list.item(selected_item, "values")
-        lesson_id, title, day_of_week, start_time, end_time, subject, notes, completed, default_students, session_price = lesson
+        # Connect to the database
+        connection = get_db_connection()
+        cursor = connection.cursor()
+        query = "SELECT * FROM lessons"  # Modify this with your actual query to get the data
+        cursor.execute(query)
+        entries = cursor.fetchall()
+        print(entries)
+        for entry in entries:
+            start_time = entry['start_time']  # Assume start_time is in 'HH:MM AM' format, adjust as needed
+            
+            # Check if start_time is in the valid format
+            if start_time:
+                try:
+                    # Parse the time into hours, minutes, and period
+                    time_parts = start_time.split()  # Split time and period (AM/PM)
+                    time_values = time_parts[0].split(':')  # Split hours and minutes
+                    hours = int(time_values[0])  # Hours as integer
+                    minutes = int(time_values[1])  # Minutes as integer
+                    period = time_parts[1] if len(time_parts) > 1 else 'AM'  # Get AM/PM or default to AM
+                    
+                    # Handle 12-hour format, convert to 24-hour format if needed
+                    if period == 'PM' and hours < 12:
+                        hours += 12
+                    elif period == 'AM' and hours == 12:
+                        hours = 0
+                    
+                    # Set the values to the combo boxes
+                    self.hour_combo.setCurrentIndex(hours)
+                    self.minute_combo.setCurrentIndex(minutes)
+                    self.period_combo.setCurrentText(period)
 
-        # Set entry fields based on retrieved lesson
-        self.title_entry.delete(0, tk.END)
-        self.title_entry.insert(0, title)
-        self.date_entry.set(day_of_week)
+                except ValueError:
+                    print(f"Invalid start time format: {start_time}")
+                    raise ValueError("Invalid start time format in database.")
+            else:
+                print("Start time is missing for an entry.")
 
-        # Parse and set start time
-        try:
-            s_hour, s_minute, s_period = datetime.strptime(start_time, '%H:%M').strftime('%I %M %p').split()
-            self.start_time_entry[0].set(s_hour)
-            self.start_time_entry[1].set(s_minute)
-            self.start_time_entry[2].set(s_period)
-        except ValueError:
-            messagebox.showerror("Error", "Invalid start time format in database.")
-
-        # Parse and set end time
-        try:
-            e_hour, e_minute, e_period = datetime.strptime(end_time, '%H:%M').strftime('%I %M %p').split()
-            self.end_time_entry[0].set(e_hour)
-            self.end_time_entry[1].set(e_minute)
-            self.end_time_entry[2].set(e_period)
-        except ValueError:
-            messagebox.showerror("Error", "Invalid end time format in database.")
-
-        self.subject_entry.delete(0, tk.END)
-        self.subject_entry.insert(0, subject)
-        self.notes_entry.delete("1.0", tk.END)
-        self.notes_entry.insert("1.0", notes)
-
-        # Handle non-string values like integers and floats separately
-        self.default_students_entry.delete(0, tk.END)
-        self.default_students_entry.insert(0, str(default_students))
-        self.session_price_entry.delete(0, tk.END)
-        self.session_price_entry.insert(0, str(session_price))
 
 if __name__ == "__main__":
     root = tk.Tk()
+    root.bell(False)
     app = LessonPlannerGUI(root)
     root.mainloop()
